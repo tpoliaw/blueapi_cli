@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// One of the bluesky protocols than can be implemented by devices in blueapi
@@ -35,6 +35,14 @@ pub struct PlanSpec {
 #[derive(Debug, Deserialize)]
 pub struct PlanList {
     pub plans: Vec<PlanSpec>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TaskId(pub String);
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TaskReference {
+    pub task_id: TaskId,
 }
 
 impl Debug for Protocol {

@@ -1,6 +1,6 @@
 use clap::Parser;
 use cli::{CliArgs, RunArgs};
-use entities::{Device, DeviceList, PlanList};
+use entities::{Device, DeviceList, PlanList, TaskReference};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use ureq::SendBody;
@@ -29,14 +29,19 @@ fn run_plan(args: RunArgs) {
         ))
         .unwrap(),
     );
-    match req {
-        Ok(mut resp) => {
-            println!("content: {:?}", resp.body_mut().read_to_string());
-        }
-        Err(e) => {
-            println!("err: {e}");
-        }
-    }
+    let task = req
+        .unwrap()
+        .body_mut()
+        .read_json::<TaskReference>()
+        .unwrap();
+    let mut resp = ureq::put("http://localhost:8000/worker/task")
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .send_json(task)
+        .unwrap();
+    println!("{resp:#?}");
+    println!("{:?}", resp.body_mut().read_to_string());
 }
 
 fn get_devices(name: Option<String>) {
@@ -65,5 +70,12 @@ fn get_plans(name: Option<String>) {
 }
 
 fn get<T: DeserializeOwned>(url: impl Into<String>) -> Result<T, ureq::Error> {
-    ureq::get(url.into()).call().unwrap().body_mut().read_json()
+    ureq::get(url.into())
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .call()
+        .unwrap()
+        .body_mut()
+        .read_json()
 }
