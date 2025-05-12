@@ -3,23 +3,27 @@ use std::fmt::Debug;
 use serde::Deserialize;
 use serde_json::Value;
 
+/// One of the bluesky protocols than can be implemented by devices in blueapi
 #[derive(Deserialize)]
 pub struct Protocol {
     name: String,
     types: Vec<String>,
 }
 
+/// Device available in blueapi along with the protocols it implements
 #[derive(Debug, Deserialize)]
 pub struct Device {
     name: String,
     protocols: Vec<Protocol>,
 }
 
+/// List of devices as returned by the blueapi server
 #[derive(Debug, Deserialize)]
 pub struct DeviceList {
     devices: Vec<Device>,
 }
 
+/// Details of a plan available in blueapi
 #[derive(Debug, Deserialize)]
 pub struct PlanSpec {
     pub name: String,
@@ -27,6 +31,7 @@ pub struct PlanSpec {
     pub schema: Value,
 }
 
+/// List of plans as returned by the blueapi server
 #[derive(Debug, Deserialize)]
 pub struct PlanList {
     pub plans: Vec<PlanSpec>,
