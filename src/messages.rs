@@ -1,8 +1,11 @@
+#![allow(unused)]
 use std::collections::HashMap;
 
+use data_model::EventDocument;
 use serde::Deserialize;
-use serde_json::Value;
 use uuid::Uuid;
+
+mod data_model;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -10,8 +13,9 @@ pub enum Message {
     Progress(ProgressEvent),
     Worker(WorkerEvent),
     Data {
+        task_id: Uuid,
         #[serde(flatten)]
-        event: Event,
+        event: EventDocument,
     },
 }
 
@@ -71,102 +75,4 @@ pub struct TaskStatus {
     task_id: Uuid,
     task_complete: bool,
     task_failed: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "name", content = "doc")]
-pub enum Event {
-    Stop {
-        data_type: Option<Value>,
-        exit_status: ExitStatus,
-        #[serde(default)]
-        num_events: HashMap<String, i32>,
-        reason: Option<String>,
-        run_start: Uuid,
-        time: f64,
-        uid: Uuid,
-    },
-    Start {
-        #[serde(default)]
-        data_groups: Vec<String>,
-        data_session: Option<String>,
-        group: Option<String>,
-        owner: Option<String>,
-        project: Option<String>,
-        sample: Option<SampleInfo>,
-        scan_id: Option<u32>,
-        time: f64,
-        uid: Uuid,
-    },
-    Event {
-        uid: Uuid,
-        time: f64,
-        data: Value,
-        timestamps: Value,
-        seq_num: u32,
-        descriptor: Uuid,
-    },
-    Descriptor {
-        #[serde(default)]
-        configuration: HashMap<String, Configuration>,
-        data_keys: HashMap<String, DataKey>,
-        name: Option<String>,
-        #[serde(default)]
-        object_keys: HashMap<String, Value>,
-        run_start: Uuid,
-        time: f64,
-        uid: Uuid,
-    },
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Configuration {
-    #[serde(default)]
-    data: HashMap<String, Value>,
-    #[serde(default)]
-    data_keys: HashMap<String, DataKey>,
-    #[serde(default)]
-    timestamps: HashMap<String, Value>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DataKey {
-    #[serde(default)]
-    choices: Vec<String>,
-    #[serde(default)]
-    dims: Vec<String>,
-    dtype: DataType,
-    dtype_numpy: Option<Value>,
-    external: Option<String>,
-    // limits: Option<Limits>,
-    object_name: Option<String>,
-    precision: Option<i32>,
-    shape: Vec<Option<i32>>,
-    source: String,
-    units: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum DataType {
-    String,
-    Number,
-    Array,
-    Boolean,
-    Integer,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum SampleInfo {
-    Info(HashMap<String, Value>),
-    Link(Uuid),
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ExitStatus {
-    Success,
-    Abort,
-    Fail,
 }
