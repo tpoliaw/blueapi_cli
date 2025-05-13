@@ -108,18 +108,19 @@ impl Client {
     }
 
     async fn message_stream(&self, task_id: TaskId) -> Option<Result<Receiver<Message>, ()>> {
-        let (client, mut conn) = rumqttc::AsyncClient::new(
-            MqttOptions::new(
-                format!("bcli-{}", Uuid::new_v4()),
-                &self.mqtt.0,
-                self.mqtt.1,
-            ),
-            0,
+        let options = MqttOptions::new(
+            format!("bcli-{}", Uuid::new_v4()),
+            &self.mqtt.0,
+            self.mqtt.1,
         );
+
+        let (client, mut conn) = rumqttc::AsyncClient::new(options, 10);
+        client
+            .subscribe("public/worker/event", QoS::AtMostOnce)
+            .await
+            .unwrap();
         let (tx, rx) = mpsc::channel(10);
-        let _client = client.clone();
         tokio::spawn(async move {
-            let _client = _client;
             let tx = tx;
             loop {
                 match conn.poll().await {
@@ -145,10 +146,6 @@ impl Client {
                 }
             }
         });
-        client
-            .subscribe("public/worker/event", QoS::AtMostOnce)
-            .await
-            .unwrap();
 
         Some(Ok(rx))
     }
