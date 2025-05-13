@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use clap::Parser;
 use cli::{CliArgs, RunArgs};
-use entities::{Device, DeviceList, PlanList, TaskReference};
+use entities::{Device, DeviceList, PlanList, TaskId, TaskReference};
 use messages::Message;
 use reqwest::Url;
 use rumqttc::{Event, MqttOptions, Packet, QoS};
@@ -54,7 +54,7 @@ impl Client {
             .send()
             .await;
         let task = req.unwrap().json::<TaskReference>().await.unwrap();
-        let mut messages = self.message_stream().await.unwrap().unwrap();
+        let mut messages = self.message_stream(task.task_id).await.unwrap().unwrap();
         let resp = self
             .agent
             .put(self.endpoint("/worker/task"))
@@ -63,8 +63,13 @@ impl Client {
             .await
             .unwrap();
 
-        while let Some(msg) = messages.recv().await {
-            println!("{msg:?}");
+        if resp.status().is_success() {
+            while let Some(msg) = messages.recv().await {
+                println!("{msg:#?}");
+            }
+        } else {
+            println!("{resp:?}");
+            println!("{:?}", resp.text().await);
         }
     }
 
@@ -102,7 +107,7 @@ impl Client {
         }
     }
 
-    async fn message_stream(&self) -> Option<Result<Receiver<Message>, ()>> {
+    async fn message_stream(&self, task_id: TaskId) -> Option<Result<Receiver<Message>, ()>> {
         let (client, mut conn) = rumqttc::AsyncClient::new(
             MqttOptions::new(
                 format!("bcli-{}", Uuid::new_v4()),
@@ -120,6 +125,9 @@ impl Client {
                 match conn.poll().await {
                     Ok(Event::Incoming(Packet::Publish(data))) => {
                         if let Ok(evt) = serde_json::from_slice::<Message>(&data.payload) {
+                            if evt.task_id() != Some(task_id) {
+                                continue;
+                            }
                             let complete = match &evt {
                                 Message::Worker(wk) => wk.complete(),
                                 _ => false,

@@ -5,6 +5,8 @@ use data_model::EventDocument;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::entities::TaskId;
+
 mod data_model;
 
 #[derive(Debug, Deserialize)]
@@ -13,15 +15,24 @@ pub enum Message {
     Progress(ProgressEvent),
     Worker(WorkerEvent),
     Data {
-        task_id: Uuid,
+        task_id: TaskId,
         #[serde(flatten)]
         event: EventDocument,
     },
 }
+impl Message {
+    pub(crate) fn task_id(&self) -> Option<TaskId> {
+        match self {
+            Message::Progress(pe) => Some(pe.task_id),
+            Message::Worker(we) => we.task_status.as_ref().map(|st| st.task_id),
+            Message::Data { task_id, event } => Some(*task_id),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ProgressEvent {
-    task_id: String,
+    task_id: TaskId,
     statuses: HashMap<String, StatusView>,
 }
 
@@ -72,7 +83,7 @@ pub enum WorkerState {
 
 #[derive(Debug, Deserialize)]
 pub struct TaskStatus {
-    task_id: Uuid,
+    task_id: TaskId,
     task_complete: bool,
     task_failed: bool,
 }
