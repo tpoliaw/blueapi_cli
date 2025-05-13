@@ -10,6 +10,7 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver};
+use uuid::Uuid;
 
 mod cli;
 mod entities;
@@ -102,8 +103,14 @@ impl Client {
     }
 
     async fn message_stream(&self) -> Option<Result<Receiver<Message>, ()>> {
-        let (client, mut conn) =
-            rumqttc::AsyncClient::new(MqttOptions::new("bcli", &self.mqtt.0, self.mqtt.1), 0);
+        let (client, mut conn) = rumqttc::AsyncClient::new(
+            MqttOptions::new(
+                format!("bcli-{}", Uuid::new_v4()),
+                &self.mqtt.0,
+                self.mqtt.1,
+            ),
+            0,
+        );
         let (tx, rx) = mpsc::channel(10);
         let _client = client.clone();
         tokio::spawn(async move {
