@@ -66,7 +66,11 @@ impl Client {
 
         if resp.status().is_success() {
             while let Some(msg) = messages.recv().await {
-                println!("{msg:#?}");
+                match &msg {
+                    Message::Progress(_) => {}
+                    Message::Worker(worker_event) => println!("{worker_event:#?}"),
+                    Message::Data { event, .. } => println!("{event:#?}"),
+                }
             }
         } else {
             println!("{resp:?}");
