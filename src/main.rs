@@ -130,23 +130,24 @@ impl Client {
             loop {
                 match conn.poll().await {
                     Ok(Event::Incoming(Packet::Publish(data))) => {
-                        if let Ok(evt) = serde_json::from_slice::<Message>(&data.payload) {
-                            if evt.task_id() != Some(task_id) {
-                                continue;
+                        match serde_json::from_slice::<Message>(&data.payload) {
+                            Ok(evt) if evt.task_id() != Some(task_id) => continue,
+                            Ok(evt) => {
+                                let complete = match &evt {
+                                    Message::Worker(wk) => wk.complete(),
+                                    _ => false,
+                                };
+                                tx.send(evt).await.unwrap();
+                                if complete {
+                                    break;
+                                }
                             }
-                            let complete = match &evt {
-                                Message::Worker(wk) => wk.complete(),
-                                _ => false,
-                            };
-                            tx.send(evt).await.unwrap();
-                            if complete {
-                                break;
+                            Err(e) => {
+                                println!("Err: {e}\n{}", String::from_utf8_lossy(&data.payload))
                             }
                         }
                     }
-                    Ok(msg) => {
-                        println!("Recv: {msg:?}");
-                    }
+                    Ok(msg) => println!("Recv: {msg:?}"),
                     Err(e) => println!("Error: {e:?}"),
                 }
             }
