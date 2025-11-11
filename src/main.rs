@@ -50,6 +50,7 @@ impl Client {
             .json(&HashMap::from([
                 ("name".to_owned(), Value::String(args.name().into())),
                 ("params".to_owned(), args.parameters().unwrap().unwrap()),
+                ("instrument_session".into(), "cm12345-2".into()),
             ]))
             .send()
             .await;
