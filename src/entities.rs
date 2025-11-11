@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,6 +11,16 @@ pub struct Protocol {
     types: Vec<String>,
 }
 
+impl Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        if !self.types.is_empty() {
+            write!(f, "[{}]", self.types.join(", "))?;
+        }
+        Ok(())
+    }
+}
+
 /// Device available in blueapi along with the protocols it implements
 #[derive(Debug, Deserialize)]
 pub struct Device {
@@ -18,10 +28,30 @@ pub struct Device {
     protocols: Vec<Protocol>,
 }
 
+impl Display for Device {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        let mut proto_iter = self.protocols.iter();
+        if let Some(first) = proto_iter.next() {
+            write!(f, "\n\t{first}")?;
+            while let Some(next) = proto_iter.next() {
+                write!(f, ", {next}")?;
+            }
+        }
+        Ok(())
+    }
+}
+
 /// List of devices as returned by the blueapi server
 #[derive(Debug, Deserialize)]
 pub struct DeviceList {
     devices: Vec<Device>,
+}
+
+impl DeviceList {
+    pub fn into_inner(self) -> Vec<Device> {
+        self.devices
+    }
 }
 
 /// Details of a plan available in blueapi

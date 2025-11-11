@@ -30,7 +30,7 @@ fn main() {
     rt.block_on(async {
         match args {
             CliArgs::Run(run_args) => client.run_plan(run_args).await,
-            CliArgs::Devices { name: filter } => client.get_devices(filter).await,
+            CliArgs::Devices { name: filter } => client.list_devices(filter).await.unwrap(),
             CliArgs::Plans { name } => client.get_plans(name).await,
         }
     });
@@ -78,18 +78,21 @@ impl Client {
         }
     }
 
-    async fn get_devices(&self, name: Option<String>) {
-        match name {
-            Some(name) => println!(
-                "{:#?}",
+    async fn list_devices(&self, name: Option<String>) -> Result<(), reqwest::Error> {
+        let devices = match name {
+            Some(name) => vec![
                 self.get::<Device>(self.endpoint(&format!("/devices/{name}")))
-                    .await
-            ),
-            None => println!(
-                "{:#?}",
-                self.get::<DeviceList>(self.endpoint("/devices")).await
-            ),
+                    .await?,
+            ],
+            None => self
+                .get::<DeviceList>(self.endpoint("/devices"))
+                .await?
+                .into_inner(),
+        };
+        for device in devices {
+            println!("{}", device);
         }
+        Ok(())
     }
 
     async fn get_plans(&self, name: Option<String>) {
