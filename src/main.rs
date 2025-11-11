@@ -137,8 +137,8 @@ impl Client {
                                     Message::Worker(wk) => wk.complete(),
                                     _ => false,
                                 };
-                                tx.send(evt).await.unwrap();
-                                if complete {
+                                let closed = tx.send(evt).await.is_err();
+                                if closed || complete {
                                     break;
                                 }
                             }
