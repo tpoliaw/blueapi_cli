@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde_json::Value;
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -111,7 +112,7 @@ pub struct StreamResource {
     pub parameters: HashMap<String, Value>,
     pub run_start: Option<Uuid>,
     pub uid: Uuid,
-    pub uri: Uuid,
+    pub uri: Url,
 }
 
 #[derive(Debug, Deserialize)]
