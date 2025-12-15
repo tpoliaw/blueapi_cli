@@ -72,7 +72,7 @@ impl Client {
             .send()
             .await;
         let task = req.unwrap().json::<TaskReference>().await.unwrap();
-        let mut messages = self.message_stream().await.unwrap().unwrap();
+        let messages = args.foreground().then(|| self.message_stream());
         let resp = self
             .agent
             .put(self.endpoint("/worker/task"))
@@ -82,19 +82,22 @@ impl Client {
             .unwrap();
 
         if resp.status().is_success() {
-            while let Some(msg) = messages.recv().await {
-                if msg.task_id().is_none_or(|id| id != task.task_id) {
-                    continue;
-                }
-                match &msg {
-                    Message::Progress(_) => {}
-                    Message::Worker(worker_event) => {
-                        println!("{worker_event:#?}");
-                        if worker_event.complete() {
-                            break;
-                        }
+            if let Some(messages) = messages {
+                let mut messages = messages.await.unwrap().unwrap();
+                while let Some(msg) = messages.recv().await {
+                    if msg.task_id().is_none_or(|id| id != task.task_id) {
+                        continue;
                     }
-                    Message::Data { event, .. } => println!("{event:#?}"),
+                    match &msg {
+                        Message::Progress(_) => {}
+                        Message::Worker(worker_event) => {
+                            println!("{worker_event:#?}");
+                            if worker_event.complete() {
+                                break;
+                            }
+                        }
+                        Message::Data { event, .. } => println!("{event:#?}"),
+                    }
                 }
             }
         } else {

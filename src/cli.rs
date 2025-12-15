@@ -44,6 +44,10 @@ pub struct RunArgs {
     #[clap(short, long, env = "BLUEAPI_INSTRUMENT_SESSION")]
     instrument_session: String,
     params: Option<String>,
+    #[clap(short, long)]
+    foreground: bool,
+    #[clap(short, long, overrides_with = "foreground")]
+    _background: bool,
 }
 
 impl RunArgs {
@@ -56,6 +60,15 @@ impl RunArgs {
             .map(|paras| serde_json::from_str(paras))
             .transpose()
             .map_err(|_| ())
+    }
+
+    pub fn foreground(&self) -> bool {
+        match (self.foreground, self._background) {
+            (false, false) => true, // default if neither given
+            (true, true) => true,   // shouldn't be possible but foreground wins
+            (true, false) => true,  // explicit --foreground passed
+            (false, true) => false, // explicit --background passed
+        }
     }
 
     pub(crate) fn instrument_session(&self) -> Value {
