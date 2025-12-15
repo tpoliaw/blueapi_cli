@@ -2,7 +2,6 @@ use std::fmt::{Debug, Display};
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use uuid::Uuid;
 
 /// One of the bluesky protocols than can be implemented by devices in blueapi
@@ -60,7 +59,6 @@ impl DeviceList {
 pub struct PlanSpec {
     pub name: String,
     pub description: Option<String>,
-    pub schema: Value,
 }
 
 /// List of plans as returned by the blueapi server
@@ -130,9 +128,6 @@ pub struct PythonEnvironment {
 pub struct PackageInfo {
     name: String,
     version: String,
-    location: String,
-    is_dirty: bool,
-    source: SourceInfo,
 }
 
 impl Display for PackageInfo {
