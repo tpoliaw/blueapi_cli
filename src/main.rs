@@ -16,8 +16,9 @@ use tokio::time;
 use uuid::Uuid;
 
 use crate::cli::PackageFilter;
-use crate::entities::{EnvironmentState, NewState, PythonEnvironment, WorkerState};
+use crate::entities::{AuthConfig, EnvironmentState, NewState, PythonEnvironment, WorkerState};
 
+mod auth;
 mod cli;
 mod entities;
 mod messages;
@@ -49,6 +50,7 @@ fn main() {
             },
             CliArgs::GetPythonEnv(filter) => client.get_python_env(filter).await,
             CliArgs::Listen => client.listen().await,
+            CliArgs::Auth(auth) => auth::login(auth, client.auth_config().await),
         }
     });
 }
@@ -222,6 +224,20 @@ impl Client {
         println!("Scratch enabled: {}", env.scratch_enabled);
         for pkg in env.installed_packages {
             println!("- {}", pkg);
+        }
+    }
+
+    async fn auth_config(&self) -> Option<AuthConfig> {
+        let response = self
+            .agent
+            .get(self.endpoint("/config/oidc"))
+            .send()
+            .await
+            .unwrap();
+        match response.status().as_u16() {
+            200 => Some(response.json().await.unwrap()),
+            204 => None,
+            _ => panic!("Unexpected response"),
         }
     }
 

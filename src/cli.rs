@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Args, Parser};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -45,6 +45,9 @@ pub enum CliArgs {
     State,
     /// Listen to events output by blueapi
     Listen,
+    /// Manage authentication and tokens
+    #[clap(subcommand)]
+    Auth(AuthCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -98,4 +101,10 @@ pub struct PackageFilter {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[clap(short, long)]
     source: Option<SourceInfo>,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum AuthCommand {
+    Login,
+    Logout,
 }

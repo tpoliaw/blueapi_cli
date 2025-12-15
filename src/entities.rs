@@ -2,6 +2,7 @@ use std::fmt::{Debug, Display};
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
+use url::Url;
 use uuid::Uuid;
 
 /// One of the bluesky protocols than can be implemented by devices in blueapi
@@ -142,4 +143,12 @@ pub enum SourceInfo {
     #[clap(name = "pypi")]
     PyPI,
     Scratch,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthConfig {
+    well_known_url: Url,
+    client_id: String,
+    client_audience: String,
+    logout_redirect_endpoint: Url,
 }
