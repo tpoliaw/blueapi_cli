@@ -41,6 +41,8 @@ pub enum CliArgs {
 #[derive(Debug, Parser)]
 pub struct RunArgs {
     name: String,
+    #[clap(short, long, env = "BLUEAPI_INSTRUMENT_SESSION")]
+    instrument_session: String,
     params: Option<String>,
 }
 
@@ -55,6 +57,11 @@ impl RunArgs {
             .transpose()
             .map_err(|_| ())
     }
+
+    pub(crate) fn instrument_session(&self) -> Value {
+        (self.instrument_session.as_str()).into()
+    }
+}
 
 #[derive(Debug, Serialize, Parser)]
 pub struct PackageFilter {
