@@ -36,8 +36,8 @@ pub enum CliArgs {
         #[clap(short, long)]
         reload: bool,
         /// Seconds to wait for the reload
-        #[clap(short, long, requires = "reload")]
-        timeout: Option<f64>,
+        #[clap(short, long, requires = "reload", default_value = "10")]
+        timeout: Option<u64>,
     },
     /// Retrieve the installed packages and their sources
     GetPythonEnv(PackageFilter),

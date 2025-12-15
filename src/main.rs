@@ -183,7 +183,7 @@ impl Client {
         self.get(self.endpoint("/environment")).await.unwrap()
     }
 
-    async fn reload_env(&self, timeout: Option<f64>) {
+    async fn reload_env(&self, timeout: Option<u64>) {
         let old = self
             .agent
             .delete(self.endpoint("/environment"))
@@ -193,7 +193,7 @@ impl Client {
             .json::<EnvironmentState>()
             .await
             .unwrap();
-        let timeout = timeout.map(|t| Instant::now() + Duration::from_secs_f64(t));
+        let timeout = timeout.map(|t| Instant::now() + Duration::from_secs(t));
         while timeout.is_none_or(|t| Instant::now() < t) {
             let env = self.get_env().await;
             if let Some(msg) = env.error_message {
