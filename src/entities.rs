@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
@@ -86,4 +87,64 @@ impl Debug for Protocol {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NewState {
+    pub new_state: WorkerState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub defer: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorkerState {
+    Idle,
+    Running,
+    Pausing,
+    Paused,
+    Halting,
+    Stopping,
+    Aborting,
+    Suspending,
+    Panicked,
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EnvironmentState {
+    pub environment_id: Uuid,
+    pub initialized: bool,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PythonEnvironment {
+    pub installed_packages: Vec<PackageInfo>,
+    pub scratch_enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PackageInfo {
+    name: String,
+    version: String,
+    location: String,
+    is_dirty: bool,
+    source: SourceInfo,
+}
+
+impl Display for PackageInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} @ {}", self.name, self.version)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum SourceInfo {
+    #[clap(name = "pypi")]
+    PyPI,
+    Scratch,
 }

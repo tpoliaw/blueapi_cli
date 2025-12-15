@@ -1,16 +1,22 @@
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use clap::Parser;
 use cli::{CliArgs, RunArgs};
-use entities::{Device, DeviceList, PlanList, TaskId, TaskReference};
+use entities::{Device, DeviceList, PlanList, TaskReference};
 use messages::Message;
 use reqwest::Url;
 use rumqttc::{Event, MqttOptions, Packet, QoS};
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver};
+use tokio::time;
 use uuid::Uuid;
+
+use crate::cli::PackageFilter;
+use crate::entities::{EnvironmentState, NewState, PythonEnvironment, WorkerState};
 
 mod cli;
 mod entities;
@@ -32,6 +38,17 @@ fn main() {
             CliArgs::Run(run_args) => client.run_plan(run_args).await,
             CliArgs::Devices { name: filter } => client.list_devices(filter).await.unwrap(),
             CliArgs::Plans { name } => client.get_plans(name).await,
+            CliArgs::Pause { defer } => client.pause(defer).await,
+            CliArgs::Resume => client.resume().await,
+            CliArgs::Stop => client.stop().await,
+            CliArgs::Abort { reason } => client.abort(reason).await,
+            CliArgs::State => client.state().await,
+            CliArgs::Env { reload, timeout } => match reload {
+                true => client.reload_env(timeout).await,
+                false => println!("{:?}", client.get_env().await),
+            },
+            CliArgs::GetPythonEnv(filter) => client.get_python_env(filter).await,
+            CliArgs::Listen => client.listen().await,
         }
     });
 }
@@ -55,7 +72,7 @@ impl Client {
             .send()
             .await;
         let task = req.unwrap().json::<TaskReference>().await.unwrap();
-        let mut messages = self.message_stream(task.task_id).await.unwrap().unwrap();
+        let mut messages = self.message_stream().await.unwrap().unwrap();
         let resp = self
             .agent
             .put(self.endpoint("/worker/task"))
@@ -66,9 +83,17 @@ impl Client {
 
         if resp.status().is_success() {
             while let Some(msg) = messages.recv().await {
+                if msg.task_id().is_none_or(|id| id != task.task_id) {
+                    continue;
+                }
                 match &msg {
                     Message::Progress(_) => {}
-                    Message::Worker(worker_event) => println!("{worker_event:#?}"),
+                    Message::Worker(worker_event) => {
+                        println!("{worker_event:#?}");
+                        if worker_event.complete() {
+                            break;
+                        }
+                    }
                     Message::Data { event, .. } => println!("{event:#?}"),
                 }
             }
@@ -115,7 +140,96 @@ impl Client {
         }
     }
 
-    async fn message_stream(&self, task_id: TaskId) -> Option<Result<Receiver<Message>, ()>> {
+    async fn state(&self) {
+        let state = self
+            .get::<WorkerState>(self.endpoint("/worker/state"))
+            .await
+            .unwrap();
+        println!("{state:?}")
+    }
+    async fn pause(&self, defer: bool) {
+        self.set_state(WorkerState::Paused, None, Some(defer)).await
+    }
+
+    async fn resume(&self) {
+        self.set_state(WorkerState::Running, None, None).await
+    }
+
+    async fn stop(&self) {
+        self.set_state(WorkerState::Stopping, None, None).await
+    }
+
+    async fn abort(&self, reason: Option<String>) {
+        self.set_state(WorkerState::Aborting, reason, None).await
+    }
+
+    async fn set_state(&self, new_state: WorkerState, reason: Option<String>, defer: Option<bool>) {
+        self.put::<_, WorkerState>(
+            self.endpoint("/worker/state"),
+            &NewState {
+                new_state,
+                reason,
+                defer,
+            },
+        )
+        .await
+        .unwrap();
+    }
+
+    async fn get_env(&self) -> EnvironmentState {
+        self.get(self.endpoint("/environment")).await.unwrap()
+    }
+
+    async fn reload_env(&self, timeout: Option<f64>) {
+        let old = self
+            .agent
+            .delete(self.endpoint("/environment"))
+            .send()
+            .await
+            .unwrap()
+            .json::<EnvironmentState>()
+            .await
+            .unwrap();
+        let timeout = timeout.map(|t| Instant::now() + Duration::from_secs_f64(t));
+        while timeout.is_none_or(|t| Instant::now() < t) {
+            let env = self.get_env().await;
+            if let Some(msg) = env.error_message {
+                panic!("{msg}");
+            }
+            if env.initialized && env.environment_id != old.environment_id {
+                println!("{env:?}");
+                break;
+            }
+            time::sleep(Duration::from_millis(500)).await;
+        }
+        panic!("Timeout waiting for environment to reload")
+    }
+
+    async fn get_python_env(&self, filter: PackageFilter) {
+        let env = self
+            .agent
+            .get(self.endpoint("/python_environment"))
+            .query(&filter)
+            .send()
+            .await
+            .unwrap()
+            .json::<PythonEnvironment>()
+            .await
+            .unwrap();
+        println!("Scratch enabled: {}", env.scratch_enabled);
+        for pkg in env.installed_packages {
+            println!("- {}", pkg);
+        }
+    }
+
+    async fn listen(&self) {
+        let mut messages = self.message_stream().await.unwrap().unwrap();
+        while let Some(msg) = messages.recv().await {
+            println!("{msg:?}");
+        }
+    }
+
+    async fn message_stream(&self) -> Option<Result<Receiver<Message>, ()>> {
         let options = MqttOptions::new(
             format!("bcli-{}", Uuid::new_v4()),
             &self.mqtt.0,
@@ -134,14 +248,9 @@ impl Client {
                 match conn.poll().await {
                     Ok(Event::Incoming(Packet::Publish(data))) => {
                         match serde_json::from_slice::<Message>(&data.payload) {
-                            Ok(evt) if evt.task_id() != Some(task_id) => continue,
                             Ok(evt) => {
-                                let complete = match &evt {
-                                    Message::Worker(wk) => wk.complete(),
-                                    _ => false,
-                                };
                                 let closed = tx.send(evt).await.is_err();
-                                if closed || complete {
+                                if closed {
                                     break;
                                 }
                             }
@@ -161,6 +270,21 @@ impl Client {
 
     async fn get<T: DeserializeOwned>(&self, url: Url) -> Result<T, reqwest::Error> {
         self.agent.get(url).send().await.unwrap().json().await
+    }
+
+    async fn put<D: Serialize, T: DeserializeOwned>(
+        &self,
+        url: Url,
+        data: &D,
+    ) -> Result<T, reqwest::Error> {
+        self.agent
+            .put(url)
+            .json(data)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
     }
 
     fn endpoint(&self, path: &str) -> Url {

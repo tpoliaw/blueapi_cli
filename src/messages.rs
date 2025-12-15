@@ -5,7 +5,7 @@ use data_model::EventDocument;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::entities::TaskId;
+use crate::entities::{TaskId, WorkerState};
 
 mod data_model;
 
@@ -64,21 +64,6 @@ impl WorkerEvent {
     pub(crate) fn complete(&self) -> bool {
         self.task_status.as_ref().is_some_and(|st| st.task_complete)
     }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum WorkerState {
-    Idle,
-    Running,
-    Pausing,
-    Paused,
-    Halting,
-    Stopping,
-    Aborting,
-    Suspending,
-    Panicked,
-    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
