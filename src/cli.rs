@@ -10,6 +10,7 @@ pub enum CliArgs {
     Run(RunArgs),
     /// Pause the current task
     Pause {
+        /// Defer the pause until the next checkpoint
         #[clap(short, long)]
         defer: bool,
     },
@@ -20,13 +21,21 @@ pub enum CliArgs {
     /// Abort the current task, marking any ongoing run as failed
     Abort { reason: Option<String> },
     /// List available devices
-    Devices { name: Option<String> },
+    Devices {
+        /// Show information for a specific devices instead of listing all
+        name: Option<String>,
+    },
     /// List available plans
-    Plans { name: Option<String> },
+    Plans {
+        /// Show information for a specific plan instead of listing all
+        name: Option<String>,
+    },
     /// Inspect or restart the environment
     Env {
+        /// Reload the current environment
         #[clap(short, long)]
         reload: bool,
+        /// Seconds to wait for the reload
         #[clap(short, long, requires = "reload")]
         timeout: Option<f64>,
     },
@@ -40,12 +49,17 @@ pub enum CliArgs {
 
 #[derive(Debug, Parser)]
 pub struct RunArgs {
+    /// The name of the plan to run
     name: String,
+    /// The instrument session with which this plan should be associated
     #[clap(short, long, env = "BLUEAPI_INSTRUMENT_SESSION")]
     instrument_session: String,
+    /// Parameters to pass to the plan in JSON format
     params: Option<String>,
+    /// Run the plan in the foreground blocking until the plan is complete
     #[clap(short, long)]
     foreground: bool,
+    /// Run the plan in the background returning before the plan is complete
     #[clap(short, long, overrides_with = "foreground")]
     _background: bool,
 }
