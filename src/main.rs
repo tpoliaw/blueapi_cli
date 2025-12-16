@@ -201,7 +201,7 @@ impl Client {
             }
             if env.initialized && env.environment_id != old.environment_id {
                 println!("{env:?}");
-                break;
+                return;
             }
             time::sleep(Duration::from_millis(500)).await;
         }
