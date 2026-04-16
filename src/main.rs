@@ -15,7 +15,7 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio::time;
 use uuid::Uuid;
 
-use crate::cli::PackageFilter;
+use crate::cli::{Command, PackageFilter};
 use crate::entities::{EnvironmentState, NewState, PythonEnvironment, WorkerState};
 
 mod cli;
@@ -28,27 +28,27 @@ fn main() {
     let client = reqwest::Client::new();
     let client = Client {
         agent: client,
-        host: Url::parse("http://localhost:8000").unwrap(),
-        mqtt: ("localhost".into(), 1883),
+        host: args.host(),
+        mqtt: args.mqtt(),
     };
 
     let rt = Runtime::new().expect("Couldn't create runtime");
     rt.block_on(async {
-        match args {
-            CliArgs::Run(run_args) => client.run_plan(run_args).await,
-            CliArgs::Devices { name: filter } => client.list_devices(filter).await.unwrap(),
-            CliArgs::Plans { name } => client.get_plans(name).await,
-            CliArgs::Pause { defer } => client.pause(defer).await,
-            CliArgs::Resume => client.resume().await,
-            CliArgs::Stop => client.stop().await,
-            CliArgs::Abort { reason } => client.abort(reason).await,
-            CliArgs::State => client.state().await,
-            CliArgs::Env { reload, timeout } => match reload {
+        match args.command {
+            Command::Run(run_args) => client.run_plan(run_args).await,
+            Command::Devices { name: filter } => client.list_devices(filter).await.unwrap(),
+            Command::Plans { name } => client.get_plans(name).await,
+            Command::Pause { defer } => client.pause(defer).await,
+            Command::Resume => client.resume().await,
+            Command::Stop => client.stop().await,
+            Command::Abort { reason } => client.abort(reason).await,
+            Command::State => client.state().await,
+            Command::Env { reload, timeout } => match reload {
                 true => client.reload_env(timeout).await,
                 false => println!("{:?}", client.get_env().await),
             },
-            CliArgs::GetPythonEnv(filter) => client.get_python_env(filter).await,
-            CliArgs::Listen => client.listen().await,
+            Command::GetPythonEnv(filter) => client.get_python_env(filter).await,
+            Command::Listen => client.listen().await,
         }
     });
 }

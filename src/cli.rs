@@ -1,11 +1,32 @@
-use clap::Parser;
+use clap::{Args, Parser};
 use serde::Serialize;
 use serde_json::Value;
+use url::Url;
 
 use crate::entities::SourceInfo;
 
 #[derive(Debug, Parser)]
-pub enum CliArgs {
+pub struct CliArgs {
+    /// Host address of the blueapi server
+    #[clap(short = 'H', long, default_value = "http://localhost:8000")]
+    host: Url,
+    /// Host address of the MQTT message bus
+    #[clap(flatten)]
+    mqtt: MqttConfig,
+    #[clap(subcommand)]
+    pub command: Command,
+}
+
+#[derive(Debug, Args)]
+pub struct MqttConfig {
+    #[arg(long = "mqtt-host", default_value = "localhost", id = "mqtt-host")]
+    host: String,
+    #[arg(long = "mqtt-port", default_value = "1883", id = "mqtt-port")]
+    port: u16,
+}
+
+#[derive(Debug, Parser)]
+pub enum Command {
     /// Run a plan
     Run(RunArgs),
     /// Pause the current task
@@ -62,6 +83,16 @@ pub struct RunArgs {
     /// Run the plan in the background returning before the plan is complete
     #[clap(short, long, overrides_with = "foreground")]
     _background: bool,
+}
+
+impl CliArgs {
+    pub fn host(&self) -> Url {
+        self.host.clone()
+    }
+
+    pub(crate) fn mqtt(&self) -> (String, u16) {
+        (self.mqtt.host.clone(), self.mqtt.port)
+    }
 }
 
 impl RunArgs {
