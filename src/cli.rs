@@ -66,6 +66,10 @@ pub enum Command {
     State,
     /// Listen to events output by blueapi
     Listen,
+    /// Generate and cache authentication token
+    Login,
+    /// Log out and remove cached tokens
+    Logout,
 }
 
 #[derive(Debug, Parser)]

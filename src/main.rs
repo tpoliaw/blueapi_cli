@@ -49,6 +49,8 @@ fn main() {
             },
             Command::GetPythonEnv(filter) => client.get_python_env(filter).await,
             Command::Listen => client.listen().await,
+            Command::Login => client.login().await,
+            Command::Logout => client.logout().await,
         }
     });
 }
@@ -230,6 +232,14 @@ impl Client {
         while let Some(msg) = messages.recv().await {
             println!("{msg:?}");
         }
+    }
+
+    async fn login(&self) {
+        todo!("Login")
+    }
+
+    async fn logout(&self) {
+        todo!("Logout")
     }
 
     async fn message_stream(&self) -> Option<Result<Receiver<Message>, ()>> {
