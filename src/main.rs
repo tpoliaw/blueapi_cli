@@ -16,7 +16,7 @@ use tokio::time;
 use uuid::Uuid;
 
 use crate::cli::{Command, PackageFilter};
-use crate::entities::{EnvironmentState, NewState, PythonEnvironment, WorkerState};
+use crate::entities::{EnvironmentState, NewState, OidcConfig, PythonEnvironment, WorkerState};
 
 mod cli;
 mod entities;
@@ -235,6 +235,7 @@ impl Client {
     }
 
     async fn login(&self) {
+        let conf = dbg!(self.get::<OidcConfig>(self.endpoint("/config/oidc")).await);
         todo!("Login")
     }
 

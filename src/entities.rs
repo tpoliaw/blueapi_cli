@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use clap::ValueEnum;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -128,6 +129,14 @@ pub struct PythonEnvironment {
 pub struct PackageInfo {
     name: String,
     version: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OidcConfig {
+    well_known_url: Url,
+    client_id: String,
+    client_audience: String,
+    // logout_redirect_endpoint: Option<Url>,
 }
 
 impl Display for PackageInfo {
