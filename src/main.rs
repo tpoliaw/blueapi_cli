@@ -18,6 +18,7 @@ use uuid::Uuid;
 use crate::cli::{Command, PackageFilter};
 use crate::entities::{EnvironmentState, NewState, OidcConfig, PythonEnvironment, WorkerState};
 
+mod auth;
 mod cli;
 mod entities;
 mod messages;
